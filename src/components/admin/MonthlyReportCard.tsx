@@ -113,15 +113,21 @@ const MonthlyReportCard = ({ onClick }: MonthlyReportCardProps) => {
                       height={80}
                     />
                     <YAxis />
-                    <Tooltip 
-                      formatter={(value: number | undefined, name: string) => {
-                        const numValue = value ?? 0;
-                        if (name === 'requests') return [`${numValue} requests`, 'Request Forms'];
-                        if (name === 'registrations') return [`${numValue} records`, 'Student Records'];
-                        return [`${numValue} total`, 'Total'];
-                      }}
-                      labelFormatter={(label) => `Month: ${formatMonthLabel(label)}`}
-                    />
+                   <Tooltip
+  formatter={(value?: number, name?: string) => {
+    const numValue = value ?? 0;
+    switch (name) {
+      case 'requests':
+        return [`${numValue} requests`, 'Request Forms'];
+      case 'registrations':
+        return [`${numValue} records`, 'Student Records'];
+      default:
+        return [`${numValue} total`, 'Total'];
+    }
+  }}
+  labelFormatter={(label) => `Month: ${formatMonthLabel(label)}`}
+/>
+
                     <Legend />
                     <Bar dataKey="requests" fill="#3B82F6" name="Request Forms" />
                     <Bar dataKey="registrations" fill="#10B981" name="Student Records" />
