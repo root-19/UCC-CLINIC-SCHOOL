@@ -1,4 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
 import type { HeaderProps } from '../types';
 import logoClinic from '../assets/images/logo-clinic.png';
 
@@ -15,6 +16,7 @@ const Header = ({
   onRequestFormClick,
   onAnnouncementsClick
 }: HeaderProps) => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -52,6 +54,12 @@ const Header = ({
       e.preventDefault();
       onRequestFormClick();
     }
+    // Close mobile menu when a link is clicked
+    setIsMobileMenuOpen(false);
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
   return (
@@ -67,6 +75,7 @@ const Header = ({
         </Link>
         
         <div className="flex items-center gap-8">
+          {/* Desktop Navigation */}
           <nav className="hidden md:flex gap-6 items-center">
             {navLinks.map((link) => (
               <Link 
@@ -80,7 +89,36 @@ const Header = ({
               </Link>
             ))}
           </nav>
+
+          {/* Mobile Burger Menu */}
+          <button
+            onClick={toggleMobileMenu}
+            className="md:hidden flex flex-col gap-1.5 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-300"
+            aria-label="Toggle mobile menu"
+          >
+            <span className={`block w-6 h-0.5 bg-gray-700 transition-all duration-300 ${isMobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
+            <span className={`block w-6 h-0.5 bg-gray-700 transition-all duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`}></span>
+            <span className={`block w-6 h-0.5 bg-gray-700 transition-all duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
+          </button>
         </div>
+
+        {/* Mobile Navigation Menu */}
+        {isMobileMenuOpen && (
+          <div className="absolute top-full left-0 right-0 bg-white/95 backdrop-blur-md shadow-lg md:hidden animate-fade-in">
+            <nav className="flex flex-col py-4 px-4 gap-4">
+              {navLinks.map((link) => (
+                <Link 
+                  key={link.path} 
+                  to={link.path} 
+                  onClick={(e) => handleLinkClick(link.label, e)}
+                  className="text-gray-700 no-underline text-base font-medium transition-all duration-300 hover:text-clinic-green hover:pl-2 py-2"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );

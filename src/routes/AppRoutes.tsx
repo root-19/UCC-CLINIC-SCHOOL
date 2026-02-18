@@ -9,6 +9,7 @@ import RegistrationStudent from '../pages/admin/RegistrationStudent';
 import Announcement from '../pages/admin/Announcement';
 import Reports from '../pages/admin/Reports';
 import AdminNotifications from '../pages/admin/notifications';
+import EmailTest from '../pages/admin/EmailTest';
 import FloatingChat from '../components/FloatingChat';
 
 const AppContent = () => {
@@ -22,6 +23,7 @@ const AppContent = () => {
         <Route path="/announcements" element={<AnnouncementsPage />} />
         <Route path="/admin/home" element={<AdminHome />} />
         <Route path="/admin/notifications" element={<AdminNotifications />} />
+        <Route path="/admin/email-test" element={<EmailTest />} />
         <Route path="/admin/requested-form" element={<RequestedForms />} />
         <Route path="/admin/inventory" element={<Inventory />} />
         <Route path="/admin/registration" element={<RegistrationStudent />} />
