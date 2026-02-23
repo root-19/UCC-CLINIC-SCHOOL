@@ -93,7 +93,19 @@ const RequestedForms = () => {
             ? { ...req, status: newStatus, updatedAt: new Date() }
             : req
         ));
-        alert(`Status updated to ${newStatus}. Email notification sent to student.`);
+        
+        // Show detailed success message with email confirmation
+        const statusMessages = {
+          approved: 'Request approved! Student has been notified via email.',
+          rejected: 'Request rejected! Student has been notified via email.',
+          processing: 'Request set to processing! Student has been notified via email.',
+          pending: 'Request reset to pending! Student has been notified via email.'
+        };
+        
+        const message = statusMessages[newStatus as keyof typeof statusMessages] || 
+                       `Status updated to ${newStatus}. Email notification sent to student.`;
+        
+        alert(message);
       } else {
         alert(data.message || 'Failed to update status');
       }

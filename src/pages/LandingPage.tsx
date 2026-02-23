@@ -8,6 +8,7 @@ import LoginModal from '../components/LoginModal';
 import RequestFormModal from '../components/RequestFormModal';
 import BlogModal from '../components/BlogModal';
 import AnnouncementsModal from '../components/AnnouncementsModal';
+import AnnouncementSlideshow from '../components/AnnouncementSlideshow';
 import OrganizationalChart from '../components/OrganizationalChart';
 import { useAuth } from '../context/AuthContext';
 
@@ -83,6 +84,8 @@ const LandingPage = () => {
         title="Clinic Access and Record Enhancements System"
         onCtaClick={handleCtaClick}
       />
+      
+      <AnnouncementSlideshow />
       
       <Footer />
       
