@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import AdminTopBar from '../../components/admin/AdminTopBar';
@@ -64,7 +63,6 @@ interface ComprehensiveReport {
 
 const ComprehensiveReports = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());

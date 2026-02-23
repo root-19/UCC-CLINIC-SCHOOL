@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import AdminTopBar from '../../components/admin/AdminTopBar';
@@ -62,14 +61,12 @@ interface EnhancedInventoryItem {
 
 const EnhancedInventory = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // State management
   const [items, setItems] = useState<EnhancedInventoryItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
-  const [expiringItems, setExpiringItems] = useState<EnhancedInventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -201,14 +198,12 @@ const EnhancedInventory = () => {
       const result = await response.json();
       
       if (result.success) {
-        setExpiringItems(result.data || []);
+        console.log('Expiring items fetched:', result.data?.length || 0);
       } else {
         console.error('Failed to fetch expiring items:', result.message);
-        setExpiringItems([]);
       }
     } catch (error) {
       console.error('Error fetching expiring items:', error);
-      setExpiringItems([]);
     }
   };
 
@@ -336,15 +331,17 @@ const EnhancedInventory = () => {
     setFormData({
       name: item.name || '',
       genericName: item.genericName || '',
-      category: item.category || '',
-      subcategory: item.subcategory || '',
-      level3: item.categoryHierarchy?.level3 || '',
-      level4: item.categoryHierarchy?.level4 || '',
-      level5: item.categoryHierarchy?.level5 || '',
-      level6: item.categoryHierarchy?.level6 || '',
+      category: item.categoryHierarchy?.level1 || '',
+      subcategory: item.categoryHierarchy?.level2 || '',
+      subsubcategory: item.categoryHierarchy?.level3 || '',
+      categoryLevel3: item.categoryHierarchy?.level3 || '',
+      categoryLevel4: item.categoryHierarchy?.level4 || '',
+      categoryLevel5: item.categoryHierarchy?.level5 || '',
+      categoryLevel6: item.categoryHierarchy?.level6 || '',
+      categoryLevel7: item.categoryHierarchy?.level7 || '',
       brand: item.brand || '',
       manufacturer: item.manufacturer || '',
-      quantity: item.quantity?.toString() || '',
+      quantity: item.totalQuantity?.toString() || '',
       unit: item.unit || 'pcs',
       deliveryDate: item.deliveryDate ? new Date(item.deliveryDate).toISOString().split('T')[0] : '',
       expirationDate: item.expirationDate ? new Date(item.expirationDate).toISOString().split('T')[0] : '',
@@ -380,10 +377,12 @@ const EnhancedInventory = () => {
       genericName: '',
       category: '',
       subcategory: '',
-      level3: '',
-      level4: '',
-      level5: '',
-      level6: '',
+      subsubcategory: '',
+      categoryLevel3: '',
+      categoryLevel4: '',
+      categoryLevel5: '',
+      categoryLevel6: '',
+      categoryLevel7: '',
       brand: '',
       manufacturer: '',
       quantity: '',
@@ -664,7 +663,7 @@ const EnhancedInventory = () => {
                             </button>
                             <button 
                               onClick={() => openDeleteModal(item)}
-                              className="text-red-600 hover:text-red-800"
+                              className="bg-red-500 text-red-600 hover:text-red-800"
                             >
                               Delete
                             </button>

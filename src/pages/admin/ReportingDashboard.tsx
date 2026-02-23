@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import AdminTopBar from '../../components/admin/AdminTopBar';
@@ -86,7 +85,6 @@ interface ChronologicalData {
 
 const ReportingDashboard = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Report state
@@ -141,30 +139,7 @@ const ReportingDashboard = () => {
     }
   };
 
-  // Fetch disease statistics
-  const fetchDiseaseStats = async () => {
-    try {
-      const response = await fetch(`${DEV_CONFIG.API_URL}/api/reporting/diseases`);
-      const result = await response.json();
-      return result.success ? result.data : null;
-    } catch (error) {
-      console.error('Error fetching disease stats:', error);
-      return null;
-    }
-  };
-
-  // Fetch inventory statistics
-  const fetchInventoryStats = async () => {
-    try {
-      const response = await fetch(`${DEV_CONFIG.API_URL}/api/reporting/inventory`);
-      const result = await response.json();
-      return result.success ? result.data : null;
-    } catch (error) {
-      console.error('Error fetching inventory stats:', error);
-      return null;
-    }
-  };
-
+  
   useEffect(() => {
     if (user) {
       fetchMonthlyReport();
@@ -178,10 +153,7 @@ const ReportingDashboard = () => {
     return months[month - 1];
   };
 
-  const getDaysInMonth = (year: number, month: number) => {
-    return new Date(year, month, 0).getDate();
-  };
-
+  
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-PH', {
       style: 'currency',
@@ -191,8 +163,6 @@ const ReportingDashboard = () => {
 
   const renderOverviewTab = () => {
     if (!reportData) return null;
-
-    const { medical, inventory, registrations, summary } = reportData;
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -372,17 +342,17 @@ const ReportingDashboard = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Net Change</h3>
             <div className="text-center">
               <div className={`text-3xl font-bold ${
-                summary.totalInventoryAdded > summary.totalInventoryConsumed 
+                reportData?.summary?.totalInventoryAdded > reportData?.summary?.totalInventoryConsumed 
                   ? 'text-green-600' 
-                  : summary.totalInventoryAdded < summary.totalInventoryConsumed 
+                  : reportData?.summary?.totalInventoryAdded < reportData?.summary?.totalInventoryConsumed 
                   ? 'text-red-600' 
                   : 'text-gray-600'
               }`}>
-                {summary.totalInventoryAdded - summary.totalInventoryConsumed}
+                {(reportData?.summary?.totalInventoryAdded || 0) - (reportData?.summary?.totalInventoryConsumed || 0)}
               </div>
               <div className="text-sm text-gray-600">
-                {summary.totalInventoryAdded > summary.totalInventoryConsumed ? 'Net Gain' : 
-                 summary.totalInventoryAdded < summary.totalInventoryConsumed ? 'Net Loss' : 'Balanced'}
+                {reportData?.summary?.totalInventoryAdded > reportData?.summary?.totalInventoryConsumed ? 'Net Gain' : 
+                 reportData?.summary?.totalInventoryAdded < reportData?.summary?.totalInventoryConsumed ? 'Net Loss' : 'Balanced'}
               </div>
             </div>
           </div>
