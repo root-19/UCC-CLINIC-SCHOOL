@@ -9,19 +9,20 @@ import { env } from '../../config/env';
 interface InventoryItem {
   id: string;
   name: string;
-  category: string;
   quantity: number;
-  expirationDate: Date | string;
-  deliveryDate?: Date | string;
   unit: string;
-  createdAt: Date | string;
-  updatedAt: Date | string;
+  expirationDate: string;
+  deliveryDate: string;
+  supplier?: string;
+  cost?: number;
+  createdAt: any;
+  updatedAt: any;
 }
 
 const Inventory = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [filteredItems, setFilteredItems] = useState<InventoryItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,24 +34,10 @@ const Inventory = () => {
   const [reduceAmount, setReduceAmount] = useState('');
   const [expirationNotifications, setExpirationNotifications] = useState<InventoryItem[]>([]);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    category: '',
-    quantity: '',
-    expirationDate: '',
-    deliveryDate: '',
-    unit: 'pcs',
-  });
-
-  // Categories for dropdown
-  const categories = [
-    'Medications',
-    'Medical Supplies',
-    'Equipment',
-    'Consumables',
-    'First Aid',
-    'Other',
+  // Common units for dropdown
+  const commonUnits = [
+    'pcs', 'boxes', 'bottles', 'tablets', 'capsules', 'ml', 'l', 'mg', 'g', 'kg',
+    'packs', 'vials', 'ampules', 'syringes', 'tubes', 'creams', 'ointments'
   ];
 
   useEffect(() => {
@@ -60,25 +47,6 @@ const Inventory = () => {
     }
   }, [user, navigate]);
 
-  useEffect(() => {
-    fetchInventory();
-  }, []);
-
-  // Filter items based on search query
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredItems(inventoryItems);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = inventoryItems.filter(item =>
-        item.name.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query) ||
-        item.unit.toLowerCase().includes(query)
-      );
-      setFilteredItems(filtered);
-    }
-  }, [searchQuery, inventoryItems]);
-
   // Check for expiration notifications
   const checkExpirationNotifications = (items: InventoryItem[]) => {
     const oneMonthFromNow = new Date();
@@ -86,6 +54,7 @@ const Inventory = () => {
     
     const expiringItems = items.filter(item => {
       if (!item.expirationDate) return false;
+      
       const expDate = typeof item.expirationDate === 'string' 
         ? new Date(item.expirationDate) 
         : item.expirationDate;
@@ -119,6 +88,24 @@ const Inventory = () => {
     }
   };
 
+  useEffect(() => {
+    fetchInventory();
+  }, []);
+
+  // Filter items based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredItems(inventoryItems);
+    } else {
+      const filtered = inventoryItems.filter(item =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.unit.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.supplier && item.supplier.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+      setFilteredItems(filtered);
+    }
+  }, [searchQuery, inventoryItems]);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -126,6 +113,16 @@ const Inventory = () => {
       [name]: value,
     }));
   };
+
+  const [formData, setFormData] = useState({
+    name: '',
+    quantity: '',
+    unit: 'pcs',
+    expirationDate: '',
+    deliveryDate: '',
+    supplier: '',
+    cost: '',
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,11 +141,12 @@ const Inventory = () => {
         setShowAddForm(false);
         setFormData({
           name: '',
-          category: '',
           quantity: '',
+          unit: 'pcs',
           expirationDate: '',
           deliveryDate: '',
-          unit: 'pcs',
+          supplier: '',
+          cost: '',
         });
         fetchInventory();
       } else {
@@ -338,7 +336,7 @@ const Inventory = () => {
                 <div className="relative">
                   <input
                     type="text"
-                    placeholder="Search by name, category, or unit..."
+                    placeholder="Search by name, unit, or supplier..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full px-4 py-2.5 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green focus:border-transparent transition-all duration-200 hover:border-clinic-green/50 input-focus animate-fade-in-up animate-delay-300"
@@ -390,22 +388,16 @@ const Inventory = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Category *
+                        Supplier
                       </label>
-                      <select
-                        name="category"
-                        value={formData.category}
+                      <input
+                        type="text"
+                        name="supplier"
+                        value={formData.supplier}
                         onChange={handleInputChange}
-                        required
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clinic-green focus:border-transparent"
-                      >
-                        <option value="">Select Category</option>
-                        {categories.map(cat => (
-                          <option key={cat} value={cat}>
-                            {cat}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="e.g., Medical Supplies Co."
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -426,13 +418,32 @@ const Inventory = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Unit
                       </label>
-                      <input
-                        type="text"
+                      <select
                         name="unit"
                         value={formData.unit}
                         onChange={handleInputChange}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clinic-green focus:border-transparent"
-                        placeholder="e.g., pcs, boxes, bottles"
+                      >
+                        {commonUnits.map(unit => (
+                          <option key={unit} value={unit}>
+                            {unit}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Cost per Unit
+                      </label>
+                      <input
+                        type="number"
+                        name="cost"
+                        value={formData.cost}
+                        onChange={handleInputChange}
+                        step="0.01"
+                        min="0"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clinic-green focus:border-transparent"
+                        placeholder="e.g., 25.50"
                       />
                     </div>
                     <div>
@@ -505,7 +516,9 @@ const Inventory = () => {
                         <div className="flex justify-between items-start mb-3">
                           <div>
                             <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                            <p className="text-sm text-gray-600">{item.category}</p>
+                            {item.supplier && (
+                              <p className="text-sm text-gray-600">Supplier: {item.supplier}</p>
+                            )}
                           </div>
                           <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             isExpired(item.expirationDate)
@@ -525,6 +538,11 @@ const Inventory = () => {
                           <p>
                             <span className="font-medium">Quantity:</span> {item.quantity} {item.unit}
                           </p>
+                          {item.cost && (
+                            <p>
+                              <span className="font-medium">Cost per Unit:</span> ₱{parseFloat(item.cost.toString()).toFixed(2)}
+                            </p>
+                          )}
                           {item.deliveryDate && (
                             <p>
                               <span className="font-medium">Delivery Date:</span> {formatDate(item.deliveryDate)}
@@ -599,10 +617,13 @@ const Inventory = () => {
                           Item Name
                         </th>
                         <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                          Category
+                          Supplier
                         </th>
                         <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-700">
                           Quantity
+                        </th>
+                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          Cost/Unit
                         </th>
                         <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-700">
                           Delivery Date
@@ -625,10 +646,13 @@ const Inventory = () => {
                             {item.name}
                           </td>
                           <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
-                            {item.category}
+                            {item.supplier || 'N/A'}
                           </td>
                           <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
                             {item.quantity} {item.unit}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                            {item.cost ? `₱${parseFloat(item.cost.toString()).toFixed(2)}` : 'N/A'}
                           </td>
                           <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
                             {item.deliveryDate ? formatDate(item.deliveryDate) : 'N/A'}
@@ -731,4 +755,3 @@ const Inventory = () => {
 };
 
 export default Inventory;
-

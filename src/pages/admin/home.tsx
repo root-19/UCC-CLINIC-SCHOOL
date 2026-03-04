@@ -11,7 +11,7 @@ import bgClinic from '../../assets/images/bg-clinic.png';
 const AdminHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     // Redirect to home if not authenticated

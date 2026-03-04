@@ -51,6 +51,26 @@ const RegistrationStudent = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [viewRecordsModalOpen, setViewRecordsModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<RegistrationForm | null>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Alphabetical sorting function by last name
+  const sortByName = (students: RegistrationForm[], order: 'asc' | 'desc' = 'asc') => {
+    return [...students].sort((a, b) => {
+      // Get last names, fallback to full name if last name is not available
+      const lastNameA = a.lastName || a.fullname?.split(' ').pop() || '';
+      const lastNameB = b.lastName || b.fullname?.split(' ').pop() || '';
+      
+      // Capitalize first letter and make the rest lowercase for proper comparison
+      const normalizedA = lastNameA.charAt(0).toUpperCase() + lastNameA.slice(1).toLowerCase();
+      const normalizedB = lastNameB.charAt(0).toUpperCase() + lastNameB.slice(1).toLowerCase();
+      
+      if (order === 'asc') {
+        return normalizedA.localeCompare(normalizedB);
+      } else {
+        return normalizedB.localeCompare(normalizedA);
+      }
+    });
+  };
 
   // Department list - same as request form
   const departments = [
@@ -134,8 +154,10 @@ const RegistrationStudent = () => {
       );
     }
 
-    setFilteredRegistrations(filtered);
-  }, [registrations, activeTab, selectedDepartment, searchQuery]);
+    // Apply alphabetical sorting by last name to filtered results
+    const sortedFiltered = sortByName(filtered, sortOrder);
+    setFilteredRegistrations(sortedFiltered);
+  }, [registrations, activeTab, selectedDepartment, searchQuery, sortOrder]);
 
   const fetchRegistrations = async () => {
     try {
@@ -144,8 +166,10 @@ const RegistrationStudent = () => {
       const data = await response.json();
 
       if (data.success) {
-        setRegistrations(data.data);
-        setFilteredRegistrations(data.data);
+        // Sort registrations alphabetically by last name
+        const sortedRegistrations = sortByName(data.data, sortOrder);
+        setRegistrations(sortedRegistrations);
+        setFilteredRegistrations(sortedRegistrations);
       } else {
         setError(data.message || 'Failed to fetch registrations');
       }
@@ -276,13 +300,13 @@ const RegistrationStudent = () => {
     }
   };
 
+  // Add toggle sort function
+  const toggleSort = () => {
+    const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(newOrder);
+  };
+
   const handlePrint = (registration: RegistrationForm) => {
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Please allow pop-ups to print the record');
-      return;
-    }
 
     // Format the date
     const formatDateForPrint = (timestamp: any) => {
@@ -540,8 +564,11 @@ const RegistrationStudent = () => {
       </html>
     `;
 
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+    }
   };
 
 
@@ -653,7 +680,7 @@ const RegistrationStudent = () => {
               </div>
 
               {/* Search and Filter Bar */}
-              <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Search Bar */}
                 <div className="relative">
                   <input
@@ -697,6 +724,26 @@ const RegistrationStudent = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Sort Button */}
+                <div>
+                  <button
+                    onClick={toggleSort}
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green focus:border-transparent bg-white transition-all duration-200 hover:border-clinic-green/50 input-focus animate-fade-in-up animate-delay-500 flex items-center justify-center gap-2"
+                  >
+                    <svg
+                      className="w-5 h-5 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                    </svg>
+                    <span className="text-gray-700">
+                      Sort: {sortOrder === 'asc' ? 'A-Z' : 'Z-A'}
+                    </span>
+                  </button>
                 </div>
               </div>
 

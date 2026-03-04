@@ -31,18 +31,22 @@ const StudentLogin = () => {
       if (data.success) {
         login(data.user);
         
-        // Redirect based on role
-        switch (data.user.role) {
-          case 'admin':
-          case 'nurse':
-            navigate('/admin/home');
-            break;
-          case 'student_assistant':
-            navigate('/admin/notifications'); // Student assistants see notifications
-            break;
-          default:
-            navigate('/admin/home');
-        }
+        // Give a moment for auth context to update before navigating
+        setTimeout(() => {
+          // Redirect based on role
+          switch (data.user.role) {
+            case 'super_admin':
+            case 'admin':
+            case 'nurse':
+              navigate('/admin/home');
+              break;
+            case 'student_assistant':
+              navigate('/admin/notifications'); // Student assistants see notifications
+              break;
+            default:
+              navigate('/admin/home');
+          }
+        }, 100);
       } else {
         setError(data.message || 'Login failed');
       }
@@ -118,6 +122,10 @@ const StudentLogin = () => {
         <div className="mt-8 p-4 bg-gray-50 rounded-lg">
           <h3 className="text-sm font-semibold text-gray-700 mb-2">User Roles:</h3>
           <div className="space-y-1 text-xs text-gray-600">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+              <span><strong>Super Admin:</strong> Complete system control</span>
+            </div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
               <span><strong>Admin:</strong> Full system access</span>

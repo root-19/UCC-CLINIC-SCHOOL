@@ -13,13 +13,19 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
     firstName: '',
     middleName: '',
     lastName: '',
+    age: '',
+    sex: '',
+    civilStatus: '',
+    mobileNumber: '',
     yearSection: '',
     schoolIdNumber: '',
     department: '',
     assessment: '',
     email: '',
-    requestDate: '',
-    requestTime: '',
+    requestDateTime: '',
+    userType: 'student',
+    requestType: '',
+    notes: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -39,7 +45,29 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
     'Other',
   ];
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  // Request types list
+  const requestTypes = [
+    'Medical Record',
+    'Medical Certificate',
+    'Fit to Work',
+    'Laboratory Referral',
+    'Appointment for Dental Check Up',
+    'Appointment for General Check Up',
+  ];
+
+  // Sex options
+  const sexOptions = ['Male', 'Female'];
+
+  // Civil status options
+  const civilStatusOptions = [
+    'Single',
+    'Married',
+    'Divorced',
+    'Widowed',
+    'Separated',
+  ];
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -50,13 +78,12 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
   useEffect(() => {
     if (isOpen) {
       const now = new Date();
-      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-      const timeStr = now.toTimeString().slice(0, 5); // HH:MM
+      // Format for datetime-local input: YYYY-MM-DDTHH:mm
+      const dateTimeStr = now.toISOString().slice(0, 16);
       
       setFormData(prev => ({
         ...prev,
-        requestDate: prev.requestDate || dateStr,
-        requestTime: prev.requestTime || timeStr,
+        requestDateTime: prev.requestDateTime || dateTimeStr,
       }));
     }
   }, [isOpen]);
@@ -74,6 +101,13 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
       return;
     }
 
+    // Validate assessment field
+    if (!formData.assessment || formData.assessment.trim() === '') {
+      setError('Assessment/Complaint field is required. Please describe your medical condition or reason for visit.');
+      setLoading(false);
+      return;
+    }
+
     try {
       // Combine name fields into fullname for backend
       const fullname = [formData.firstName, formData.middleName, formData.lastName]
@@ -82,13 +116,19 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
 
       const requestBody = {
         fullname,
+        age: formData.age,
+        sex: formData.sex,
+        civilStatus: formData.civilStatus,
+        mobileNumber: formData.mobileNumber,
         yearSection: formData.yearSection,
         schoolIdNumber: formData.schoolIdNumber,
         department: formData.department,
         assessment: formData.assessment,
         email: formData.email,
-        requestDate: formData.requestDate,
-        requestTime: formData.requestTime,
+        requestDateTime: formData.requestDateTime,
+        userType: formData.userType,
+        requestType: formData.requestType,
+        notes: formData.notes,
       };
 
       const response = await fetch(`${env.API_URL}/api/requests`, {
@@ -105,19 +145,24 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
         setSuccess(true);
         // Reset form
         const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const timeStr = now.toTimeString().slice(0, 5);
+        const dateTimeStr = now.toISOString().slice(0, 16);
         setFormData({
           firstName: '',
           middleName: '',
           lastName: '',
+          age: '',
+          sex: '',
+          civilStatus: '',
+          mobileNumber: '',
           yearSection: '',
           schoolIdNumber: '',
           department: '',
           assessment: '',
           email: '',
-          requestDate: dateStr,
-          requestTime: timeStr,
+          requestDateTime: dateTimeStr,
+          userType: 'student',
+          requestType: '',
+          notes: '',
         });
         // Close modal after 2 seconds
         setTimeout(() => {
@@ -220,6 +265,91 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
               </div>
             </div>
 
+            {/* Personal Information Fields */}
+            <div className="flex flex-col gap-4">
+              {/* Age */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label htmlFor="age" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
+                  Age:
+                </label>
+                <input
+                  type="number"
+                  id="age"
+                  name="age"
+                  value={formData.age}
+                  onChange={handleChange}
+                  required
+                  min="1"
+                  max="120"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green transition-all duration-200 hover:border-clinic-green/50 input-focus"
+                  placeholder="Enter your age"
+                />
+              </div>
+
+              {/* Sex */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label htmlFor="sex" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
+                  Sex:
+                </label>
+                <select
+                  id="sex"
+                  name="sex"
+                  value={formData.sex}
+                  onChange={handleChange}
+                  required
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green bg-white"
+                >
+                  <option value="">Select Sex</option>
+                  {sexOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Civil Status */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label htmlFor="civilStatus" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
+                  Civil Status:
+                </label>
+                <select
+                  id="civilStatus"
+                  name="civilStatus"
+                  value={formData.civilStatus}
+                  onChange={handleChange}
+                  required
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green bg-white"
+                >
+                  <option value="">Select Civil Status</option>
+                  {civilStatusOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Mobile Number */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <label htmlFor="mobileNumber" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
+                  Mobile Number:
+                </label>
+                <input
+                  type="tel"
+                  id="mobileNumber"
+                  name="mobileNumber"
+                  value={formData.mobileNumber}
+                  onChange={handleChange}
+                  required
+                  pattern="[0-9]{10,11}"
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green transition-all duration-200 hover:border-clinic-green/50 input-focus"
+                  placeholder="09XXXXXXXXX"
+                  title="Enter 10-11 digit mobile number"
+                />
+              </div>
+            </div>
+
             {/* Course/Year & Section */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <label htmlFor="yearSection" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
@@ -295,20 +425,58 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
               </select>
             </div>
 
-            {/* Assessment */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <label htmlFor="assessment" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
-                Form Request:
+            {/* Assessment Field */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
+              <label htmlFor="assessment" className="text-gray-700 font-medium sm:w-40 flex-shrink-0 pt-2">
+                Assessment/Complaint:
               </label>
-              <input
-                type="text"
+              <textarea
                 id="assessment"
                 name="assessment"
                 value={formData.assessment}
                 onChange={handleChange}
                 required
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green transition-all duration-200 hover:border-clinic-green/50 input-focus"
-                placeholder="Enter the form you are requesting"
+                rows={3}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green transition-all duration-200 hover:border-clinic-green/50 input-focus resize-none"
+                placeholder="Describe your medical condition, symptoms, or reason for visit..."
+              />
+            </div>
+
+            {/* Request Type Dropdown */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <label htmlFor="requestType" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
+                Request Type:
+              </label>
+              <select
+                id="requestType"
+                name="requestType"
+                value={formData.requestType}
+                onChange={handleChange}
+                required
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green bg-white"
+              >
+                <option value="">Select Request Type</option>
+                {requestTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Notes Field */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
+              <label htmlFor="notes" className="text-gray-700 font-medium sm:w-40 flex-shrink-0 pt-2">
+                Additional Notes:
+              </label>
+              <textarea
+                id="notes"
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                rows={3}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green transition-all duration-200 hover:border-clinic-green/50 input-focus resize-none"
+                placeholder="Enter any additional information or special requests..."
               />
             </div>
 
@@ -329,32 +497,47 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
               />
             </div>
 
-            {/* Request Date */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <label htmlFor="requestDate" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
-                Request Date:
+            {/* User Type Selection */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
+              <label className="text-gray-700 font-medium sm:w-40 flex-shrink-0 pt-2">
+                Request Type:
               </label>
-              <input
-                type="date"
-                id="requestDate"
-                name="requestDate"
-                value={formData.requestDate}
-                onChange={handleChange}
-                required
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green transition-all duration-200 hover:border-clinic-green/50 input-focus"
-              />
+              <div className="flex flex-col gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="student"
+                    checked={formData.userType === 'student'}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-clinic-green focus:ring-clinic-green border-gray-300"
+                  />
+                  <span className="text-gray-700">Student</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="faculty"
+                    checked={formData.userType === 'faculty'}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-clinic-green focus:ring-clinic-green border-gray-300"
+                  />
+                  <span className="text-gray-700">Faculty</span>
+                </label>
+              </div>
             </div>
 
-            {/* Request Time */}
+            {/* Request Date and Time */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <label htmlFor="requestTime" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
-                Request Time:
+              <label htmlFor="requestDateTime" className="text-gray-700 font-medium sm:w-40 flex-shrink-0">
+                Request Date & Time:
               </label>
               <input
-                type="time"
-                id="requestTime"
-                name="requestTime"
-                value={formData.requestTime}
+                type="datetime-local"
+                id="requestDateTime"
+                name="requestDateTime"
+                value={formData.requestDateTime}
                 onChange={handleChange}
                 required
                 className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-green transition-all duration-200 hover:border-clinic-green/50 input-focus"

@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import AdminTopBar from '../../components/admin/AdminTopBar';
 import bgClinic from '../../assets/images/bg-clinic.png';
 import { env } from '../../config/env';
+import { sendEmailNotification, createApprovalEmailTemplate, createRejectionEmailTemplate, createProcessingEmailTemplate, type EmailAttachment } from '../../utils/emailService';
+import { uploadFile, validateFile, formatFileSize, getFileIcon, type UploadedFile } from '../../utils/fileUpload';
 
 interface RequestForm {
   id: string;
@@ -16,6 +18,7 @@ interface RequestForm {
   email: string;
   requestDate?: any;
   status: string;
+  attachments?: UploadedFile[];
   createdAt: any;
   updatedAt: any;
 }
@@ -23,12 +26,19 @@ interface RequestForm {
 const RequestedForms = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [requests, setRequests] = useState<RequestForm[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showAttachmentModal, setShowAttachmentModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<RequestForm | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Redirect to home if not authenticated
@@ -76,6 +86,34 @@ const RequestedForms = () => {
   const handleUpdateStatus = async (requestId: string, newStatus: string) => {
     try {
       setUpdatingId(requestId);
+      
+      // Find the request to get details for email
+      const request = requests.find(req => req.id === requestId);
+      if (!request) {
+        throw new Error('Request not found');
+      }
+
+      // Prepare email attachments if request has any
+      let attachments: EmailAttachment[] = [];
+      if (request.attachments && request.attachments.length > 0) {
+        for (const attachment of request.attachments) {
+          try {
+            const response = await fetch(attachment.url);
+            const blob = await response.blob();
+            const arrayBuffer = await blob.arrayBuffer();
+            
+            attachments.push({
+              filename: attachment.name,
+              content: arrayBuffer,
+              contentType: attachment.type
+            });
+          } catch (error) {
+            console.error('Failed to fetch attachment for email:', error);
+          }
+        }
+      }
+
+      // Update status via API
       const response = await fetch(`${env.API_URL}/api/requests/${requestId}/status`, {
         method: 'PATCH',
         headers: {
@@ -94,18 +132,54 @@ const RequestedForms = () => {
             : req
         ));
         
-        // Show detailed success message with email confirmation
-        const statusMessages = {
-          approved: 'Request approved! Student has been notified via email.',
-          rejected: 'Request rejected! Student has been notified via email.',
-          processing: 'Request set to processing! Student has been notified via email.',
-          pending: 'Request reset to pending! Student has been notified via email.'
-        };
+        // Send email notification based on status
+        let emailTemplate;
+        let emailMessage;
+
+        switch (newStatus) {
+          case 'approved':
+            emailTemplate = createApprovalEmailTemplate(request.fullname, request);
+            emailMessage = 'Request approved! Student has been notified via email with attachments.';
+            break;
+          case 'rejected':
+            emailTemplate = createRejectionEmailTemplate(request.fullname, request, rejectionReason);
+            emailMessage = 'Request rejected! Student has been notified via email.';
+            break;
+          case 'processing':
+            emailTemplate = createProcessingEmailTemplate(request.fullname, request);
+            emailMessage = 'Request set to processing! Student has been notified via email.';
+            break;
+          case 'pending':
+            emailTemplate = createProcessingEmailTemplate(request.fullname, request);
+            emailMessage = 'Request reset to pending! Student has been notified via email.';
+            break;
+          default:
+            emailMessage = `Status updated to ${newStatus}.`;
+        }
+
+        // Send email notification if template exists
+        if (emailTemplate) {
+          try {
+            const emailResult = await sendEmailNotification({
+              to: request.email,
+              subject: emailTemplate.subject,
+              html: emailTemplate.html,
+              attachments: attachments.length > 0 ? attachments : undefined
+            });
+
+            if (emailResult.success) {
+              console.log('Email notification sent successfully');
+            } else {
+              console.error('Email notification failed:', emailResult.message);
+              emailMessage += ' (Email notification failed)';
+            }
+          } catch (emailError) {
+            console.error('Email service error:', emailError);
+            emailMessage += ' (Email notification failed)';
+          }
+        }
         
-        const message = statusMessages[newStatus as keyof typeof statusMessages] || 
-                       `Status updated to ${newStatus}. Email notification sent to student.`;
-        
-        alert(message);
+        alert(emailMessage);
       } else {
         alert(data.message || 'Failed to update status');
       }
@@ -170,6 +244,90 @@ const RequestedForms = () => {
 
   const closeSidebar = () => {
     setSidebarOpen(false);
+  };
+
+  // File handling functions
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const validFiles = files.filter(file => {
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        alert(`${file.name}: ${validation.error}`);
+        return false;
+      }
+      return true;
+    });
+    setSelectedFiles(prev => [...prev, ...validFiles]);
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleFileUpload = async (requestId: string) => {
+    if (selectedFiles.length === 0) {
+      alert('Please select files to upload');
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      const uploadedFiles: UploadedFile[] = [];
+
+      for (const file of selectedFiles) {
+        const uploadedFile = await uploadFile(file);
+        uploadedFiles.push(uploadedFile);
+      }
+
+      // Update request with attachments
+      const response = await fetch(`${env.API_URL}/api/requests/${requestId}/attachments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ attachments: uploadedFiles }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setRequests(requests.map(req => 
+          req.id === requestId 
+            ? { ...req, attachments: [...(req.attachments || []), ...uploadedFiles] }
+            : req
+        ));
+        
+        setSelectedFiles([]);
+        setShowAttachmentModal(false);
+        alert('Files uploaded successfully!');
+      } else {
+        throw new Error('Failed to attach files to request');
+      }
+    } catch (error) {
+      console.error('File upload error:', error);
+      alert('Failed to upload files. Please try again.');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const openAttachmentModal = (request: RequestForm) => {
+    setSelectedRequest(request);
+    setShowAttachmentModal(true);
+  };
+
+  const openRejectionModal = (request: RequestForm) => {
+    setSelectedRequest(request);
+    setRejectionReason('');
+    setShowRejectionModal(true);
+  };
+
+  const handleRejectWithReason = async () => {
+    if (!selectedRequest) return;
+    
+    await handleUpdateStatus(selectedRequest.id, 'rejected');
+    setShowRejectionModal(false);
+    setSelectedRequest(null);
+    setRejectionReason('');
   };
 
   if (!user) {
@@ -255,6 +413,11 @@ const RequestedForms = () => {
                               <span className="font-medium">Request Date & Time:</span> {formatDate(request.requestDate)}
                             </p>
                           )}
+                          {request.attachments && request.attachments.length > 0 && (
+                            <p>
+                              <span className="font-medium">Attachments:</span> {request.attachments.length} file(s)
+                            </p>
+                          )}
                           <p className="text-xs text-gray-500 mt-3">
                             Submitted: {formatDate(request.createdAt)}
                           </p>
@@ -271,7 +434,7 @@ const RequestedForms = () => {
                                 {updatingId === request.id ? 'Updating...' : 'Approve'}
                               </button>
                               <button
-                                onClick={() => handleUpdateStatus(request.id, 'rejected')}
+                                onClick={() => openRejectionModal(request)}
                                 disabled={updatingId === request.id}
                                 className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
                               >
@@ -288,6 +451,12 @@ const RequestedForms = () => {
                               {updatingId === request.id ? 'Updating...' : 'Reset to Pending'}
                             </button>
                           )}
+                          <button
+                            onClick={() => openAttachmentModal(request)}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300 text-sm font-medium"
+                          >
+                            📎 Attach
+                          </button>
                           <button
                             onClick={() => handleDelete(request.id)}
                             disabled={deletingId === request.id}
@@ -323,6 +492,9 @@ const RequestedForms = () => {
                           Email
                         </th>
                         <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                          Attachments
+                        </th>
+                        <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-700">
                           Request Date & Time
                         </th>
                         <th className="border border-gray-300 px-4 py-3 text-left text-sm font-semibold text-gray-700">
@@ -355,6 +527,15 @@ const RequestedForms = () => {
                             {request.email}
                           </td>
                           <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                            {request.attachments && request.attachments.length > 0 ? (
+                              <div className="flex items-center">
+                                <span className="text-blue-600">📎 {request.attachments.length} file(s)</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">No attachments</span>
+                            )}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
                             {request.requestDate ? formatDate(request.requestDate) : 'N/A'}
                           </td>
                           <td className="border border-gray-300 px-4 py-3">
@@ -373,7 +554,7 @@ const RequestedForms = () => {
                                     {updatingId === request.id ? '...' : 'Approve'}
                                   </button>
                                   <button
-                                    onClick={() => handleUpdateStatus(request.id, 'rejected')}
+                                    onClick={() => openRejectionModal(request)}
                                     disabled={updatingId === request.id}
                                     className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs font-medium disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     title="Reject"
@@ -392,6 +573,13 @@ const RequestedForms = () => {
                                   {updatingId === request.id ? '...' : 'Reset'}
                                 </button>
                               )}
+                              <button
+                                onClick={() => openAttachmentModal(request)}
+                                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs font-medium"
+                                title="Attach Files"
+                              >
+                                📎
+                              </button>
                               <button
                                 onClick={() => handleDelete(request.id)}
                                 disabled={deletingId === request.id}
@@ -418,9 +606,170 @@ const RequestedForms = () => {
           </div>
         </main>
       </div>
+
+      {/* Attachment Modal */}
+      {showAttachmentModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">
+              Attach Files - {selectedRequest.fullname}
+            </h2>
+            
+            {/* Existing Attachments */}
+            {selectedRequest.attachments && selectedRequest.attachments.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Existing Attachments</h3>
+                <div className="space-y-2">
+                  {selectedRequest.attachments.map((attachment, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">{getFileIcon(attachment.type)}</span>
+                        <div>
+                          <p className="font-medium text-gray-900">{attachment.name}</p>
+                          <p className="text-sm text-gray-500">{formatFileSize(attachment.size)}</p>
+                        </div>
+                      </div>
+                      <a
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        View
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* File Upload */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Add New Files</h3>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.txt"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-clinic-green transition-colors"
+              >
+                <div className="text-center">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  <p className="mt-2 text-sm text-gray-600">Click to select files or drag and drop</p>
+                  <p className="text-xs text-gray-500">PDF, Word, Images (Max 5MB per file)</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Selected Files */}
+            {selectedFiles.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Selected Files</h3>
+                <div className="space-y-2">
+                  {selectedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <span className="text-2xl mr-3">{getFileIcon(file.type)}</span>
+                        <div>
+                          <p className="font-medium text-gray-900">{file.name}</p>
+                          <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveFile(index)}
+                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowAttachmentModal(false);
+                  setSelectedRequest(null);
+                  setSelectedFiles([]);
+                }}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleFileUpload(selectedRequest.id)}
+                disabled={uploadingFile || selectedFiles.length === 0}
+                className="px-4 py-2 bg-clinic-green text-white rounded-md hover:bg-clinic-green-hover transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                {uploadingFile ? 'Uploading...' : 'Upload Files'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal */}
+      {showRejectionModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Reject Request</h3>
+                <p className="text-sm text-gray-500">{selectedRequest.fullname}</p>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for Rejection (Optional)
+              </label>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clinic-green"
+                placeholder="Provide a reason for rejecting this request..."
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowRejectionModal(false);
+                  setSelectedRequest(null);
+                  setRejectionReason('');
+                }}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRejectWithReason}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                Reject Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default RequestedForms;
-

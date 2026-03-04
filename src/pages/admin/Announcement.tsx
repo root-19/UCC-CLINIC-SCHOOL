@@ -6,7 +6,7 @@ import AdminTopBar from '../../components/admin/AdminTopBar';
 import bgClinic from '../../assets/images/bg-clinic.png';
 import { env } from '../../config/env';
 
-interface Announcement {
+interface AnnouncementData {
   id: string;
   title: string;
   description: string;
@@ -18,8 +18,8 @@ interface Announcement {
 const Announcement = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [announcements, setAnnouncements] = useState<AnnouncementData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -127,7 +127,7 @@ const Announcement = () => {
     }
   };
 
-  const handleEdit = (announcement: Announcement) => {
+  const handleEdit = (announcement: AnnouncementData) => {
     setEditingId(announcement.id);
     setFormData({
       title: announcement.title,
@@ -472,4 +472,3 @@ const Announcement = () => {
 };
 
 export default Announcement;
-

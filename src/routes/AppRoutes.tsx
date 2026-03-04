@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import LandingPage from '../pages/LandingPage';
 import StudentLogin from '../pages/StudentLogin';
+import SetupSuperAdmin from '../pages/SetupSuperAdmin';
 import AnnouncementsPage from '../pages/AnnouncementsPage';
 import AdminHome from '../pages/admin/home';
 import RequestedForms from '../pages/admin/RequestedForms';
@@ -26,6 +27,7 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<StudentLogin />} />
+        <Route path="/setup-super-admin" element={<SetupSuperAdmin />} />
         <Route path="/announcements" element={<AnnouncementsPage />} />
         <Route path="/admin/home" element={<AdminHome />} />
         <Route path="/admin/notifications" element={<AdminNotifications />} />

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import AdminTopBar from '../../components/admin/AdminTopBar';
-import { DEV_CONFIG } from '../../config/dev-config';
 
 interface User {
   id: string;
@@ -20,9 +19,9 @@ interface User {
 const UserManagement = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
@@ -51,35 +50,13 @@ const UserManagement = () => {
   };
 
   const fetchUsers = async () => {
-    // Check if user management feature is available
-    if (!DEV_CONFIG.FEATURES.USER_MANAGEMENT) {
-      console.log('User management feature not available in production');
-      return;
-    }
-    
     try {
       setIsLoading(true);
-      const response = await fetch(`${DEV_CONFIG.API_URL}/api/auth/users`);
+      const response = await fetch(`http://localhost:3000/api/auth/users`);
       
-      // Check if response is ok and get content type
       if (!response.ok) {
-        const text = await response.text();
-        console.error('Server returned error:', response.status, text);
-        
-        // If it's a 404, the feature might not be deployed yet
-        if (response.status === 404) {
-          console.log('User management endpoints not deployed yet');
-          return;
-        }
-        
-        throw new Error(`Server error: ${response.status}`);
-      }
-      
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        throw new Error('Server returned non-JSON response');
+        console.log('User management endpoints not deployed yet');
+        return;
       }
       
       const data = await response.json();
@@ -100,7 +77,7 @@ const UserManagement = () => {
     e.preventDefault();
     
     try {
-      const response = await fetch(`${DEV_CONFIG.API_URL}/api/auth/users`, {
+      const response = await fetch(`http://localhost:3000/api/auth/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -108,19 +85,8 @@ const UserManagement = () => {
         body: JSON.stringify(formData)
       });
 
-      // Check if response is ok and get content type
       if (!response.ok) {
-        const text = await response.text();
-        console.error('Server returned error:', response.status, text);
-        alert(`Server error: ${response.status}`);
-        return;
-      }
-      
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        alert('Server returned non-JSON response');
+        alert('Server error: ' + response.status);
         return;
       }
 
@@ -140,24 +106,7 @@ const UserManagement = () => {
         fetchUsers();
         alert('User created successfully!');
       } else {
-        // Handle specific duplicate errors
-        if (result.type === 'username') {
-          alert(`Username "${formData.username}" already exists. Please choose a different username.`);
-        } else if (result.type === 'fullName') {
-          const existing = result.existingUser;
-          alert(`⚠️ Duplicate User Detected!\n\nA user with the name "${formData.fullName}" already exists:\n\n• Name: ${existing.fullName}\n• Role: ${existing.role}\n• Student ID: ${existing.studentId || 'Not specified'}\n\nPlease verify if this is the same person or use a different name.`);
-        } else if (result.type === 'studentId') {
-          const existing = result.existingUser;
-          alert(`⚠️ Duplicate Student ID!\n\nStudent ID "${formData.studentId}" is already registered to:\n\n• Name: ${existing.fullName}\n• Role: ${existing.role}\n• Student ID: ${existing.studentId}\n\nPlease verify the student ID or contact the existing user.`);
-        } else if (result.type === 'email') {
-          const existing = result.existingUser;
-          alert(`⚠️ Duplicate Email!\n\nEmail "${formData.email}" is already registered to:\n\n• Name: ${existing.fullName}\n• Role: ${existing.role}\n• Email: ${existing.email}\n\nPlease use a different email address.`);
-        } else if (result.type === 'contactNumber') {
-          const existing = result.existingUser;
-          alert(`⚠️ Duplicate Contact Number!\n\nContact number "${formData.contactNumber}" is already registered to:\n\n• Name: ${existing.fullName}\n• Role: ${existing.role}\n• Contact: ${existing.contactNumber}\n\nPlease use a different contact number.`);
-        } else {
-          alert(result.message || 'Failed to create user');
-        }
+        alert(result.message || 'Failed to create user');
       }
     } catch (error) {
       console.error('Error creating user:', error);
@@ -171,7 +120,7 @@ const UserManagement = () => {
     }
 
     try {
-      const response = await fetch(`${DEV_CONFIG.API_URL}/api/auth/users/${userId}`, {
+      const response = await fetch(`http://localhost:3000/api/auth/users/${userId}`, {
         method: 'DELETE'
       });
 
@@ -191,7 +140,7 @@ const UserManagement = () => {
 
   const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
     try {
-      const response = await fetch(`${DEV_CONFIG.API_URL}/api/auth/users/${userId}/status`, {
+      const response = await fetch(`http://localhost:3000/api/auth/users/${userId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
@@ -263,14 +212,9 @@ const UserManagement = () => {
               </div>
               <button
                 onClick={() => setShowCreateModal(true)}
-                disabled={!DEV_CONFIG.FEATURES.USER_MANAGEMENT}
-                className={`px-4 py-2 rounded-md transition-colors ${
-                  DEV_CONFIG.FEATURES.USER_MANAGEMENT 
-                    ? 'bg-clinic-green text-white hover:bg-clinic-green-hover' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
+                className="px-4 py-2 bg-clinic-green text-white rounded-md hover:bg-clinic-green-hover transition-colors"
               >
-                {DEV_CONFIG.FEATURES.USER_MANAGEMENT ? 'Create New User' : 'Feature Not Available'}
+                Create New User
               </button>
             </div>
 
@@ -279,14 +223,6 @@ const UserManagement = () => {
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-lg font-semibold text-gray-900">System Users</h2>
                 <p className="text-sm text-gray-600 mt-1">All registered users in the clinic system</p>
-                {!DEV_CONFIG.FEATURES.USER_MANAGEMENT && (
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                      <strong>Feature Unavailable:</strong> User management is only available in development mode. 
-                      Run the local server to access this feature.
-                    </p>
-                  </div>
-                )}
               </div>
 
               <div className="overflow-x-auto">

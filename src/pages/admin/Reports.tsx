@@ -56,7 +56,7 @@ interface ReportData {
 const Reports = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reportData, setReportData] = useState<ReportData | null>(null);
@@ -367,4 +367,3 @@ const Reports = () => {
 };
 
 export default Reports;
-

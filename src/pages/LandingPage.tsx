@@ -68,7 +68,10 @@ const LandingPage = () => {
 
   const handleLoginSuccess = (userData: any) => {
     login(userData);
-    navigate('/admin/home');
+    // Give a moment for auth context to update before navigating
+    setTimeout(() => {
+      navigate('/admin/home');
+    }, 100);
   };
 
   return (
