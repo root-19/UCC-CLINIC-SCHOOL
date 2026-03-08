@@ -84,7 +84,7 @@ const LandingPage = () => {
         onAnnouncementsClick={handleAnnouncementsClick}
       />
       <Hero 
-        title="Clinic Access and Record Enhancements System"
+        title="Clinic Access and Record Enhancement System"
         onCtaClick={handleCtaClick}
       />
       
