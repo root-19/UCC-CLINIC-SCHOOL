@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import AdminTopBar from '../../components/admin/AdminTopBar';
+import { DEV_CONFIG } from '../../config/dev-config';
 
 interface User {
   id: string;
@@ -52,7 +53,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`http://localhost:3000/api/auth/users`);
+      const response = await fetch(`${DEV_CONFIG.API_URL}/api/auth/users`);
       
       if (!response.ok) {
         console.log('User management endpoints not deployed yet');
@@ -77,7 +78,7 @@ const UserManagement = () => {
     e.preventDefault();
     
     try {
-      const response = await fetch(`http://localhost:3000/api/auth/users`, {
+      const response = await fetch(`${DEV_CONFIG.API_URL}/api/auth/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -120,7 +121,7 @@ const UserManagement = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/auth/users/${userId}`, {
+      const response = await fetch(`${DEV_CONFIG.API_URL}/api/auth/users/${userId}`, {
         method: 'DELETE'
       });
 
@@ -140,7 +141,7 @@ const UserManagement = () => {
 
   const handleToggleUserStatus = async (userId: string, currentStatus: boolean) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/auth/users/${userId}/status`, {
+      const response = await fetch(`${DEV_CONFIG.API_URL}/api/auth/users/${userId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json'
