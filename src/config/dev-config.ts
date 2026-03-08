@@ -3,9 +3,9 @@ export const DEV_CONFIG = {
   // Always use Railway backend for all environments
   API_URL: 'https://clinic-backend-production-8835.up.railway.app',
     
-  // Feature flags - enable user management for localhost development
+  // Feature flags - enable user management for all environments
   FEATURES: {
-    USER_MANAGEMENT: import.meta.env.DEV, // Available in localhost development
+    USER_MANAGEMENT: true, // Always enabled
     EMAIL_TESTING: true
   }
 };
