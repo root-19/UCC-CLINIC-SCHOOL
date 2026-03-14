@@ -20,12 +20,32 @@ const AnnouncementsModal = ({ isOpen, onClose }: AnnouncementsModalProps) => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       fetchAnnouncements();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (announcements.length > 0 && announcements[currentIndex].image) {
+      console.log('Current announcement image URL:', `${env.API_URL}${announcements[currentIndex].image}`);
+    }
+  }, [announcements, currentIndex]);
+
+  useEffect(() => {
+    if (announcements.length <= 1 || isPaused) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => 
+        prevIndex === announcements.length - 1 ? 0 : prevIndex + 1
+      );
+    }, 5000); // Change slide every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [announcements.length, isPaused]);
 
   const fetchAnnouncements = async () => {
     try {
@@ -56,87 +76,147 @@ const AnnouncementsModal = ({ isOpen, onClose }: AnnouncementsModalProps) => {
   const formatDate = (date: Date | string) => {
     if (!date) return 'N/A';
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.toLocaleString('en-US', {
+    // Convert to Philippine time (UTC+8)
+    const phTime = new Date(dateObj.toLocaleString("en-US", {timeZone: "Asia/Manila"}));
+    return phTime.toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
+      timeZone: 'Asia/Manila'
     });
   };
- 
+
+  const goToPrevious = () => {
+    setCurrentIndex(currentIndex === 0 ? announcements.length - 1 : currentIndex - 1);
+  };
+
+  const goToNext = () => {
+    setCurrentIndex(currentIndex === announcements.length - 1 ? 0 : currentIndex + 1);
+  };
+
+  const togglePause = () => {
+    setIsPaused(!isPaused);
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Announcements">
-      <div className="space-y-6">
-        <div className="mb-6">
-          <p className="text-gray-600 text-sm">
-            Stay updated with the latest news and important information from the clinic.
-          </p>
-        </div>
-
-        {loading && (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-clinic-green"></div>
-            <p className="mt-4 text-gray-600">Loading announcements...</p>
+    <Modal isOpen={isOpen} onClose={onClose} title="Latest Announcements" size="lg">
+      <div className="relative">
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <p className="mt-2 text-gray-600">Loading announcements...</p>
           </div>
-        )}
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
+        ) : error ? (
+          <div className="text-center py-8">
+            <div className="text-red-600 mb-2">⚠️</div>
+            <p className="text-gray-600">{error}</p>
+            <button
+              onClick={fetchAnnouncements}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Try Again
+            </button>
           </div>
-        )}
-
-        {!loading && !error && announcements.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No announcements available at the moment.</p>
-            <p className="text-gray-500 text-sm mt-2">Please check back later for updates.</p>
+        ) : announcements.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-gray-400 mb-2">📢</div>
+            <p className="text-gray-600">No announcements available at the moment.</p>
           </div>
-        )}
-
-        {!loading && !error && announcements.length > 0 && (
+        ) : (
           <div className="space-y-6">
-            {announcements.map((announcement) => (
-              <article
-                key={announcement.id}
-                className="border border-gray-200 rounded-xl p-5 hover:shadow-professional-lg transition-all duration-300 bg-gradient-to-br from-white to-gray-50 card-hover animate-fade-in-up"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="px-3 py-1 bg-clinic-green text-white text-xs font-semibold rounded-full">
-                        Announcement
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {formatDate(announcement.createdAt)}
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">{announcement.title}</h3>
-                    {announcement.image && (
-                      <div className="mb-3">
-                        <img
-                          src={`${env.API_URL}${announcement.image}`}
-                          alt={announcement.title}
-                          className="w-full h-48 object-cover rounded-lg"
-                        />
-                      </div>
-                    )}
-                    <p className="text-sm text-gray-600 mb-3 leading-relaxed whitespace-pre-wrap">
-                      {announcement.description}
-                    </p>
-                  </div>
+            {/* Slideshow Controls */}
+            {announcements.length > 1 && (
+              <div className="flex justify-between items-center mb-4">
+                <button
+                  onClick={goToPrevious}
+                  className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors"
+                  title="Previous announcement"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={togglePause}
+                    className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+                  >
+                    {isPaused ? '▶️ Play' : '⏸️ Pause'}
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    {isPaused ? 'Paused' : 'Auto-playing'} • {currentIndex + 1} of {announcements.length}
+                  </span>
                 </div>
-              </article>
-            ))}
-          </div>
-        )}
+                
+                <button
+                  onClick={goToNext}
+                  className="p-2 rounded-full bg-gray-200 hover:bg-gray-300 transition-colors"
+                  title="Next announcement"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            )}
 
-        {!loading && !error && announcements.length > 0 && (
-          <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-            <p className="text-sm text-gray-600">
-              For more information or inquiries, please visit our clinic or contact us.
-            </p>
+            {/* Current Announcement */}
+            <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <div className="mb-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  {announcements[currentIndex].title}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {formatDate(announcements[currentIndex].createdAt)}
+                </p>
+              </div>
+              
+              <div className="prose max-w-none">
+                <p className="text-gray-700 whitespace-pre-wrap">
+                  {announcements[currentIndex].description}
+                </p>
+              </div>
+              
+              {announcements[currentIndex].image && (
+                <div className="mt-4">
+                  <img
+                    src={`${env.API_URL}${announcements[currentIndex].image}`}
+                    alt={announcements[currentIndex].title}
+                    className="w-full h-48 object-cover rounded-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      console.error('Failed to load image:', `${env.API_URL}${announcements[currentIndex].image}`);
+                    }}
+                    onLoad={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'block';
+                      console.log('Image loaded successfully:', `${env.API_URL}${announcements[currentIndex].image}`);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Dots Indicator */}
+            {announcements.length > 1 && (
+              <div className="flex justify-center space-x-2">
+                {announcements.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentIndex(index)}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      index === currentIndex ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
+                    title={`Go to announcement ${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

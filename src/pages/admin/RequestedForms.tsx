@@ -1,11 +1,11 @@
-import { useEffect, useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import AdminTopBar from '../../components/admin/AdminTopBar';
 import bgClinic from '../../assets/images/bg-clinic.png';
 import { env } from '../../config/env';
-import { sendEmailNotification, createApprovalEmailTemplate, createRejectionEmailTemplate, createProcessingEmailTemplate, type EmailAttachment } from '../../utils/emailService';
+import { sendEmailNotification, createApprovalEmailTemplate, createRejectionEmailTemplate, createProcessingEmailTemplate } from '../../utils/emailService';
 import { uploadFile, validateFile, formatFileSize, getFileIcon, type UploadedFile } from '../../utils/fileUpload';
 
 interface RequestForm {
@@ -73,13 +73,16 @@ const RequestedForms = () => {
   const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleString('en-US', {
+    // Convert to Philippine time (UTC+8)
+    const phTime = new Date(date.toLocaleString("en-US", {timeZone: "Asia/Manila"}));
+    return phTime.toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
+      timeZone: 'Asia/Manila'
     });
   };
 
@@ -91,26 +94,6 @@ const RequestedForms = () => {
       const request = requests.find(req => req.id === requestId);
       if (!request) {
         throw new Error('Request not found');
-      }
-
-      // Prepare email attachments if request has any
-      let attachments: EmailAttachment[] = [];
-      if (request.attachments && request.attachments.length > 0) {
-        for (const attachment of request.attachments) {
-          try {
-            const response = await fetch(attachment.url);
-            const blob = await response.blob();
-            const arrayBuffer = await blob.arrayBuffer();
-            
-            attachments.push({
-              filename: attachment.name,
-              content: arrayBuffer,
-              contentType: attachment.type
-            });
-          } catch (error) {
-            console.error('Failed to fetch attachment for email:', error);
-          }
-        }
       }
 
       // Update status via API
@@ -160,23 +143,42 @@ const RequestedForms = () => {
         // Send email notification if template exists
         if (emailTemplate) {
           try {
+            console.log('Sending email notification...');
+            console.log('Email template exists:', !!emailTemplate);
+            
             const emailResult = await sendEmailNotification({
               to: request.email,
               subject: emailTemplate.subject,
-              html: emailTemplate.html,
-              attachments: attachments.length > 0 ? attachments : undefined
+              html: emailTemplate.html
             });
+
+            console.log('Email notification result:', emailResult);
 
             if (emailResult.success) {
               console.log('Email notification sent successfully');
             } else {
               console.error('Email notification failed:', emailResult.message);
-              emailMessage += ' (Email notification failed)';
+              if (emailResult.message.includes('SMTP configuration')) {
+                emailMessage += ' (Email notification failed - Gmail App Password needs setup)';
+              } else {
+                emailMessage += ' (Email notification failed)';
+              }
             }
           } catch (emailError) {
             console.error('Email service error:', emailError);
-            emailMessage += ' (Email notification failed)';
+            console.error('Full email error details:', JSON.stringify(emailError, null, 2));
+            
+            // Check if it's a network error
+            if (emailError instanceof TypeError && emailError.message.includes('fetch')) {
+              emailMessage += ' (Email notification failed - Network error)';
+            } else if (emailError instanceof TypeError && emailError.message.includes('NetworkError')) {
+              emailMessage += ' (Email notification failed - CORS/Network issue)';
+            } else {
+              emailMessage += ' (Email notification failed)';
+            }
           }
+        } else {
+          console.log('No email template found for status:', newStatus);
         }
         
         alert(emailMessage);

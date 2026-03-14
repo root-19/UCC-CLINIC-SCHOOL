@@ -74,12 +74,19 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
     });
   };
 
-  // Set default date and time to current date/time
+  // Set default date and time to current date/time in Philippine timezone
   useEffect(() => {
     if (isOpen) {
       const now = new Date();
+      // Convert to Philippine time (UTC+8)
+      const phTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Manila"}));
       // Format for datetime-local input: YYYY-MM-DDTHH:mm
-      const dateTimeStr = now.toISOString().slice(0, 16);
+      const year = phTime.getFullYear();
+      const month = String(phTime.getMonth() + 1).padStart(2, '0');
+      const day = String(phTime.getDate()).padStart(2, '0');
+      const hours = String(phTime.getHours()).padStart(2, '0');
+      const minutes = String(phTime.getMinutes()).padStart(2, '0');
+      const dateTimeStr = `${year}-${month}-${day}T${hours}:${minutes}`;
       
       setFormData(prev => ({
         ...prev,
@@ -145,7 +152,15 @@ const RequestFormModal = ({ isOpen, onClose }: RequestFormModalProps) => {
         setSuccess(true);
         // Reset form
         const now = new Date();
-        const dateTimeStr = now.toISOString().slice(0, 16);
+        // Convert to Philippine time (UTC+8)
+        const phTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Manila"}));
+        // Format for datetime-local input: YYYY-MM-DDTHH:mm
+        const year = phTime.getFullYear();
+        const month = String(phTime.getMonth() + 1).padStart(2, '0');
+        const day = String(phTime.getDate()).padStart(2, '0');
+        const hours = String(phTime.getHours()).padStart(2, '0');
+        const minutes = String(phTime.getMinutes()).padStart(2, '0');
+        const dateTimeStr = `${year}-${month}-${day}T${hours}:${minutes}`;
         setFormData({
           firstName: '',
           middleName: '',

@@ -178,13 +178,16 @@ const Announcement = () => {
   const formatDate = (date: Date | string) => {
     if (!date) return 'N/A';
     const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.toLocaleString('en-US', {
+    // Convert to Philippine time (UTC+8)
+    const phTime = new Date(dateObj.toLocaleString("en-US", {timeZone: "Asia/Manila"}));
+    return phTime.toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
+      timeZone: 'Asia/Manila'
     });
   };
 

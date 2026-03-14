@@ -70,12 +70,15 @@ const ViewRecordsModal = ({ isOpen, onClose, studentId, studentData }: ViewRecor
   const formatDate = (date: Date | string) => {
     if (!date) return 'N/A';
     const d = date instanceof Date ? date : new Date(date);
-    return d.toLocaleString('en-US', {
+    // Convert to Philippine time (UTC+8)
+    const phTime = new Date(d.toLocaleString("en-US", {timeZone: "Asia/Manila"}));
+    return phTime.toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'Asia/Manila'
     });
   };
 
