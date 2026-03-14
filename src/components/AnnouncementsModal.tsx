@@ -102,7 +102,7 @@ const AnnouncementsModal = ({ isOpen, onClose }: AnnouncementsModalProps) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Latest Announcements" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Latest Announcements">
       <div className="relative">
         {loading ? (
           <div className="text-center py-8">
