@@ -99,6 +99,18 @@ const ReportingDashboard = () => {
       params.append('year', selectedYear.toString());
 
       const response = await fetch(`${env.API_URL}/api/reports/dashboard?${params.toString()}`);
+      
+      // Check if response is ok and contains JSON
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(`Expected JSON but got ${contentType || 'unknown content type'}. Response: ${text.substring(0, 100)}...`);
+      }
+      
       const data = await response.json();
 
       if (data.success) {
@@ -111,7 +123,8 @@ const ReportingDashboard = () => {
         setError(data.message || 'Failed to fetch dashboard data');
       }
     } catch (err) {
-      setError('Network error. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Error fetching dashboard data: ${errorMessage}`);
       console.error('Error fetching dashboard data:', err);
     } finally {
       setLoading(false);
